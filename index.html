@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#111827">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Spending Log">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <title>Spending Log</title>
+  <style>
+    *{box-sizing:border-box}
+    body{margin:0;background:#f3f4f6;color:#111827;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    .app{max-width:650px;margin:auto;padding:20px 16px 40px}
+    h1{font-size:28px;margin:8px 0 4px}
+    .sub{color:#6b7280;margin:0 0 18px}
+    .card{background:#fff;border-radius:18px;padding:18px;margin-bottom:14px;box-shadow:0 3px 15px #0000000b}
+    .totals{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .total{background:#f9fafb;border-radius:14px;padding:14px}
+    .total small{display:block;color:#6b7280;margin-bottom:5px}
+    .total strong{font-size:22px}
+    label{display:block;font-size:13px;font-weight:600;color:#4b5563;margin:12px 0 6px}
+    input,select,button{width:100%;font:inherit;border-radius:12px}
+    input,select{padding:12px;border:1px solid #d1d5db;background:#fff}
+    button{border:0;padding:13px;font-weight:700;cursor:pointer}
+    .add{background:#111827;color:#fff;margin-top:15px}
+    .danger{background:#fee2e2;color:#991b1b;margin-top:10px}
+    .entry{display:flex;justify-content:space-between;gap:12px;padding:13px 0;border-bottom:1px solid #e5e7eb}
+    .entry:last-child{border-bottom:0}
+    .entry-name{font-weight:650}
+    .entry-meta{font-size:12px;color:#6b7280;margin-top:3px}
+    .amount{font-weight:750;white-space:nowrap}
+    .empty{text-align:center;color:#9ca3af;padding:25px 0}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .toolbar{display:flex;gap:8px}
+    .toolbar button{background:#e5e7eb;color:#374151}
+    @media(max-width:420px){.app{padding:16px 12px 30px}}
+  </style>
+</head>
+<body>
+<div class="app">
+  <h1>Spending Log</h1>
+  <p class="sub">A simple place to keep track of what you exchange and spend.</p>
+
+  <div class="card">
+    <div class="totals">
+      <div class="total"><small>Total spent</small><strong id="spent">0</strong></div>
+      <div class="total"><small>Entries</small><strong id="count">0</strong></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 style="font-size:18px;margin:0">Add entry</h2>
+    <label for="description">What did you spend/exchange?</label>
+    <input id="description" placeholder="e.g. Dinner, USD → TRY, Taxi">
+
+    <div class="row">
+      <div>
+        <label for="amount">Amount</label>
+        <input id="amount" type="number" inputmode="decimal" min="0" step="0.01" placeholder="25">
+      </div>
+      <div>
+        <label for="currency">Currency</label>
+        <select id="currency">
+          <option>TRY</option><option>USD</option><option>EUR</option><option>GBP</option>
+          <option>MYR</option><option>PKR</option><option>Other</option>
+        </select>
+      </div>
+    </div>
+
+    <label for="date">Date</label>
+    <input id="date" type="date">
+    <button class="add" id="add">Add entry</button>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <h2 style="font-size:18px;margin:0">History</h2>
+      <button id="clear" style="width:auto;padding:8px 11px;background:#fee2e2;color:#991b1b">Clear all</button>
+    </div>
+    <div id="entries"><div class="empty">No spending recorded yet.</div></div>
+  </div>
+</div>
+
+<script>
+const KEY = "spending-log-v1";
+const $ = id => document.getElementById(id);
+let entries = JSON.parse(localStorage.getItem(KEY) || "[]");
+$("date").value = new Date().toISOString().slice(0,10);
+
+function save(){ localStorage.setItem(KEY, JSON.stringify(entries)); }
+function money(n,c){ return Number(n).toLocaleString(undefined,{maximumFractionDigits:2})+" "+c; }
+
+function render(){
+  $("count").textContent = entries.length;
+  const byCurrency = {};
+  entries.forEach(e => byCurrency[e.currency] = (byCurrency[e.currency]||0) + Number(e.amount));
+  $("spent").textContent = Object.entries(byCurrency).map(([c,n]) => money(n,c)).join(" · ") || "0";
+
+  const box = $("entries");
+  if(!entries.length){ box.innerHTML='<div class="empty">No spending recorded yet.</div>'; return; }
+  box.innerHTML = entries.map(e => `
+    <div class="entry">
+      <div>
+        <div class="entry-name">${escapeHtml(e.description)}</div>
+        <div class="entry-meta">${e.date}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="amount">${money(e.amount,e.currency)}</div>
+        <button onclick="removeEntry('${e.id}')" style="width:auto;padding:6px 8px;background:#f3f4f6;color:#6b7280">×</button>
+      </div>
+    </div>`).join("");
+}
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+}
+window.removeEntry = function(id){
+  entries = entries.filter(e => e.id !== id); save(); render();
+};
+$("add").onclick = () => {
+  const description = $("description").value.trim();
+  const amount = parseFloat($("amount").value);
+  if(!description || !amount || amount <= 0){ alert("Enter what you spent and a valid amount."); return; }
+  entries.unshift({
+    id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(),
+    description, amount, currency:$("currency").value, date:$("date").value
+  });
+  save(); render();
+  $("description").value=""; $("amount").value="";
+  $("description").focus();
+};
+$("clear").onclick = () => {
+  if(entries.length && confirm("Delete all spending entries?")){
+    entries=[]; save(); render();
+  }
+};
+render();
+if("serviceWorker" in navigator) window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js"));
+</script>
+</body>
+</html>

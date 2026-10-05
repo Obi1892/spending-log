@@ -1,0 +1,12 @@
+{
+  "name": "Spending Log",
+  "short_name": "Spending Log",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f3f4f6",
+  "theme_color": "#111827",
+  "description": "A simple personal spending log.",
+  "icons": [
+    {"src":"icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}
+  ]
+}
